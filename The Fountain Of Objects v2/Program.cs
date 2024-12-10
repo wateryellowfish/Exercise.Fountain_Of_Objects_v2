@@ -1,21 +1,16 @@
-﻿using System.Data.Common;
+﻿
 
 Intro.ColoredMessage();
-Console.ReadKey(true);
 Console.WriteLine();
 Intro_a.ColoredMessage();
-Console.ReadKey(true);
 Console.WriteLine();
 Intro_b.ColoredMessage();
-Console.ReadKey(true);
-Console.WriteLine(); ;
+Console.WriteLine();
 Intro_c.ColoredMessage();
-Console.ReadKey(true);
 Console.WriteLine();
 Map.Generate();
 Map.Show();
 Player.CheckRoom();
-
 
 while(Player.IsDead==false && Player.IsWin==false)
 {
@@ -41,9 +36,9 @@ static class Map
         }
         Map.Rooms[0, 0] = ("O", RoomType.entrance);
         Fountain.SetLocation();
-        GenerateTraps("!", RoomType.pit);
-        GenerateTraps("?", RoomType.maelstrom);
-        GenerateTraps("X", RoomType.amarok);
+        GenerateTraps(" ", RoomType.pit);
+        GenerateTraps(" ", RoomType.maelstrom);
+        GenerateTraps(" ", RoomType.amarok);
     }
     private static void ChooseSize()
     {
@@ -86,7 +81,7 @@ static class Map
             Console.WriteLine() ;
         }
     }
-    public static string Mark(int row, int column)
+    /*public static string Mark(int row, int column)
     {
         return Rooms[row, column].room switch
         {
@@ -96,7 +91,7 @@ static class Map
             RoomType.fountain => "*",
             _ => " "
         };
-    }
+    }*/
 
     public static void GenerateTraps(string mark,RoomType roomType)
     {
@@ -125,6 +120,7 @@ static class Player
 {
     public static (int row, int column) Location { get; set; } = (0, 0);
     public static bool IsDead { get;private set; }=false;
+    private static int Arrows { get; set; } = 5;
     public static bool IsWin { get; private set; } = false;
     public static void Move()
     {
@@ -141,13 +137,41 @@ static class Player
         else if (key == ConsoleKey.Spacebar) Shoot();
         else return;
 
-        Map.Rooms[Location.row, Location.column] = (Map.Mark(Location.row,Location.column), Map.Rooms[Location.row,Location.column].room);
+        Map.Rooms[Location.row, Location.column] = (" ", Map.Rooms[Location.row,Location.column].room);
         Location = (row, column);
         Map.Rooms[Location.row, Location.column] = ("O", Map.Rooms[Location.row, Location.column].room);
     }
     private static void Shoot()
     {
-
+        if(Arrows<=0)
+        {
+            OutOfArrows.ColoredMessage();
+            return;
+        }
+        int rowToShoot=0;
+        int columnToShoot=0;
+        Console.WriteLine($"\nArrows: {Arrows}/5.\nPress W, A, S, or D to choose direction to shoot or press other keys to cancel.");
+        ConsoleKey key= Console.ReadKey(true).Key;
+        if (key == ConsoleKey.W) rowToShoot = -1;
+        else if (key == ConsoleKey.A) columnToShoot = -1;
+        else if (key == ConsoleKey.S) rowToShoot = 1;
+        else if (key == ConsoleKey.D) columnToShoot = 1;
+        else return;
+        Arrows--;
+        try
+        {
+            RoomType roomType = Map.Rooms[Location.row + rowToShoot, Location.column + columnToShoot].room;
+            if (roomType == RoomType.amarok)
+            {
+                Map.Rooms[Location.row + rowToShoot, Location.column + columnToShoot] = (" ", RoomType.blank);
+                AmarokKilled.ColoredMessage();
+                CheckRoom();
+            }
+        }
+        catch(IndexOutOfRangeException)
+        {
+            Nothing.ColoredMessage();
+        }
     }
 
     public static void CheckRoom()
@@ -162,7 +186,6 @@ static class Player
         {
             IsDead = true;
             PlayerDead.ColoredMessage();
-            Console.ReadKey();
         }
         else if (roomType==RoomType.entrance)
         {
@@ -171,7 +194,6 @@ static class Player
             {
                 IsWin = true;
                 PlayerWins.ColoredMessage();
-                Console.ReadKey ();
             }
         }
         else if (roomType==RoomType.maelstrom)
@@ -185,7 +207,7 @@ static class Player
             int maelstromRow=Location.row;
             int maelstromColumn=Location.column;
             Map.Rooms[maelstromRow, maelstromColumn] = (" ", RoomType.blank);
-            Map.Rooms[Location.row, Location.column] = (Map.Mark(Location.row, Location.column), Map.Rooms[Location.row, Location.column].room);
+            Map.Rooms[Location.row, Location.column] = (" ", Map.Rooms[Location.row, Location.column].room);
             Location = (playerRow, playerColumn);
             Map.Rooms[Location.row, Location.column] = ("O", Map.Rooms[Location.row, Location.column].room);
 
@@ -198,10 +220,15 @@ static class Player
             if (maelstromColumn - 1 >= 0 && Map.Rooms[maelstromRow, maelstromColumn - 1].room == RoomType.blank && isMaelstromActive) maelstromColumn--;
             else if (maelstromRow + 1 < Map.Size.row && Map.Rooms[maelstromRow + 1, maelstromColumn].room == RoomType.pit) isMaelstromActive = false;
 
-            if(isMaelstromActive) Map.Rooms[maelstromRow, maelstromColumn] = ("?", RoomType.maelstrom);
+            if(isMaelstromActive) Map.Rooms[maelstromRow, maelstromColumn] = (" ", RoomType.maelstrom);
             Map.Show();
             Swept.ColoredMessage();
             CheckRoom();
+        }
+        else if(roomType==RoomType.amarok)
+        {
+            IsDead = true;
+            Eaten.ColoredMessage();
         }
     }
     private static void ScanNearbyRooms()
@@ -214,6 +241,8 @@ static class Player
                 try
                 {
                     if (Map.Rooms[Location.row + i, Location.column + j].room == RoomType.pit) NearbyPit.ColoredMessage();
+                    if (Map.Rooms[Location.row + i, Location.column + j].room == RoomType.maelstrom) NearbyMaelstrom.ColoredMessage();
+                    if (Map.Rooms[Location.row + i, Location.column + j].room == RoomType.amarok) NearbyAmarok.ColoredMessage();
                 }
                 catch (IndexOutOfRangeException)
                 {
@@ -223,7 +252,6 @@ static class Player
         }
     }
 }
-
 
 static class Fountain
 {
@@ -235,7 +263,7 @@ static class Fountain
         int column=random.Next(0,Map.Size.column-1);
         if (Map.Rooms[row, column].room == RoomType.blank)
         {
-            Map.Rooms[row, column] = ("*", RoomType.fountain);
+            Map.Rooms[row, column] = (" ", RoomType.fountain);
         }
         else SetLocation();
     }
@@ -253,8 +281,6 @@ static class Fountain
     }
 }
 
-
-
 class Narrative
 {
     protected static string Message { get; set; } = "";
@@ -265,6 +291,7 @@ class Narrative
         Console.ForegroundColor = Color;
         Console.WriteLine(Message);
         Console.ForegroundColor = ConsoleColor.White;
+        Console.ReadKey(true);
     }
 }
 
@@ -276,7 +303,7 @@ class Intro : Narrative
 Light is visible only in the entrance, and no other light is seen anywhere in the caverns.
 You must navigate the Caverns with your other senses.
 Find the Fountain of Objects, activate it, and return to the entrance.";
-        Color=ConsoleColor.Magenta;
+        Color=ConsoleColor.Cyan;
         ShowMessage();
     }
 }
@@ -287,7 +314,7 @@ class Intro_a : Narrative
     {
         Message = @"Look out for pits. You will feel a breeze if a pit is in an adjacent room. 
 If you enter a room with a pit, you will die.";
-        Color = ConsoleColor.Magenta;
+        Color = ConsoleColor.Cyan;
         ShowMessage();
     }
 }
@@ -298,7 +325,7 @@ class Intro_b : Narrative
     {
         Message = @"Maelstroms are violent forces of sentient wind. Entering a room with one could transport you to any other location in the caverns. 
 You will be able to hear their growling and groaning in nearby rooms.";
-        Color = ConsoleColor.Magenta;
+        Color = ConsoleColor.Cyan;
         ShowMessage();
     }
 }
@@ -308,7 +335,7 @@ class Intro_c : Narrative
     public static void ColoredMessage()
     {
         Message = @"Amaroks roam the caverns. Encountering one is certain death, but you can smell their rotten stench in nearby rooms.";
-        Color = ConsoleColor.Magenta;
+        Color = ConsoleColor.Cyan;
         ShowMessage();
     }
 }
@@ -392,11 +419,76 @@ class Swept : Narrative
         Message = @"
 You are swept away by a maelstrom! 
 You are thrown to another room.";
+        Color = ConsoleColor.DarkMagenta;
+        ShowMessage();
+    }
+}
+
+class NearbyMaelstrom : Narrative
+{
+    public static void ColoredMessage()
+    {
+        Message = @"
+You hear the growling and groaning of a maelstrom nearby.";
+        Color = ConsoleColor.Magenta;
+        ShowMessage();
+    }
+}
+
+class NearbyAmarok : Narrative
+{
+    public static void ColoredMessage()
+    {
+        Message = @"
+You can smell the rotten stench of an amarok in a nearby room.";
+        Color = ConsoleColor.Red;
+        ShowMessage();
+    }
+}
+
+class Eaten : Narrative
+{
+    public static void ColoredMessage()
+    {
+        Message = @"
+You are eaten by an amarok.
+You died.";
+        Color = ConsoleColor.DarkRed;
+        ShowMessage();
+    }
+}
+
+class Nothing : Narrative
+{
+    public static void ColoredMessage()
+    {
+        Message = @"
+Nothing happened.";
         Color = ConsoleColor.Cyan;
         ShowMessage();
     }
 }
 
+class AmarokKilled : Narrative
+{
+    public static void ColoredMessage()
+    {
+        Message = @"
+You have killed an amarok!";
+        Color = ConsoleColor.Cyan;
+        ShowMessage();
+    }
+}
 
+class OutOfArrows : Narrative
+{
+    public static void ColoredMessage()
+    {
+        Message = @"
+You are out of arrows.";
+        Color = ConsoleColor.Cyan;
+        ShowMessage();
+    }
+}
 
 enum RoomType { blank, entrance, fountain, pit, maelstrom, amarok }
